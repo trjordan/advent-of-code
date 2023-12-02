@@ -49,22 +49,24 @@ func main() {
 		// fmt.Println(string(myJson))
 
 		// Logic!!
-		valid := true
+		maxRed := 0
+		maxGreen := 0
+		maxBlue := 0
 		for _, pull := range res {
-			if pull["red"] > 12 {
-				valid = false
+			if pull["red"] > maxRed {
+				maxRed = pull["red"]
 			}
-			if pull["green"] > 13 {
-				valid = false
+			if pull["green"] > maxGreen {
+				maxGreen = pull["green"]
 			}
-			if pull["blue"] > 14 {
-				valid = false
+			if pull["blue"] > maxBlue {
+				maxBlue = pull["blue"]
 			}
 		}
-		fmt.Println("line result", valid, gameId)
-		if valid {
-			s = s + gameId
-		}
+		power := maxRed * maxGreen * maxBlue
+		fmt.Println("line result", maxRed, maxGreen, maxBlue, power, gameId)
+		s = s + power
+
 	}
 
 	fmt.Println("result", s)
