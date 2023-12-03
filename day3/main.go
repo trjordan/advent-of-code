@@ -9,63 +9,77 @@ import (
 	"strings"
 )
 
-// func collapsePartNums(line []string) []string {
-// 	partMatches := regexp.MustCompile("[0-9]+")
+func getLineSlice(line string) []string {
+	lineSlice := make([]string, len(line))
 
-// }
-
-func updateLineMatches(line string, validSpaces []bool) []bool {
-	validMatches := regexp.MustCompile("[^.0-9]")
-
-	prevMatches := validMatches.FindAllStringIndex(line, -1)
-	for _, match := range prevMatches {
-		// Padding the input means we know there's no matches on the edge
-		i := match[0]
-		validSpaces[i-1] = true
-		validSpaces[i] = true
-		validSpaces[i+1] = true
+	// Parts get filled with the full part number
+	partMatches := regexp.MustCompile("[0-9]+")
+	partPositions := partMatches.FindAllStringIndex(line, -1)
+	for _, pair := range partPositions {
+		num := line[pair[0]:pair[1]]
+		for i := pair[0]; i < pair[1]; i++ {
+			lineSlice[i] = num
+		}
 	}
 
-	return validSpaces
+	// Gears get inserted literally (lol regexp overkill)
+	gearMatches := regexp.MustCompile("\\*")
+	gearPositions := gearMatches.FindAllStringIndex(line, -1)
+	for _, pair := range gearPositions {
+		for i := pair[0]; i < pair[1]; i++ {
+			lineSlice[i] = "*"
+		}
+	}
+
+	// fmt.Println(line)
+	// fmt.Println(lineSlice)
+
+	return lineSlice
 }
 
-func getParts(prev string, line string, next string) []int {
+func getGearRatioProducts(prev []string, line []string, next []string) []int {
 
-	partNums := []int{}
+	ratios := []int{}
 
-	validSpaces := make([]bool, len(line))
-	validSpaces = updateLineMatches(prev, validSpaces)
-	validSpaces = updateLineMatches(line, validSpaces)
-	validSpaces = updateLineMatches(next, validSpaces)
+	// Find all unique part numbers around the gear
+	// (Bug: what if there are two of the same part? )
+	for i := 1; i < len(line)-1; i++ {
+		partNumSet := map[string]int{}
+		target := line[i]
+		if target == "*" {
+			fmt.Println("found a gear")
+			// fmt.Println(prev)
+			// fmt.Println(line)
+			// fmt.Println(next)
+			partNumSet[prev[i-1]] += 1
+			partNumSet[prev[i]] += 1
+			partNumSet[prev[i+1]] += 1
+			partNumSet[line[i-1]] += 1
+			partNumSet[line[i+1]] += 1
+			partNumSet[next[i-1]] += 1
+			partNumSet[next[i]] += 1
+			partNumSet[next[i+1]] += 1
 
-	partMatches := regexp.MustCompile("[0-9]+")
-
-	validParts := partMatches.FindAllStringIndex(line, -1)
-	for _, pair := range validParts {
-		num := line[pair[0]:pair[1]]
-		numInt, _ := strconv.Atoi(num)
-		valid := false
-		for i := pair[0]; i < pair[1]; i++ {
-			valid = valid || validSpaces[i]
-		}
-		if valid {
-			partNums = append(partNums, numInt)
+			delete(partNumSet, "")
+			if len(partNumSet) == 2 {
+				fmt.Println("It's good!", partNumSet)
+				ratio := 1
+				for k, _ := range partNumSet {
+					intKey, _ := strconv.Atoi(k)
+					ratio = ratio * intKey
+				}
+				ratios = append(ratios, ratio)
+			} else {
+				fmt.Println("It's bad", partNumSet)
+			}
 		}
 	}
 
-	fmt.Println(prev)
-	fmt.Println(line)
-	fmt.Println(next)
-	fmt.Println(validSpaces)
-	fmt.Println(validParts)
-	fmt.Println(partNums)
-	fmt.Println("--")
-
-	return partNums
+	return ratios
 }
 
 func main() {
-	f, _ := os.Open("./baby-input.txt")
+	f, _ := os.Open("./input.txt")
 
 	scanner := bufio.NewScanner(f)
 
@@ -78,21 +92,25 @@ func main() {
 	lines = append([]string{blankline}, lines...)
 	lines = append(lines, blankline)
 
-	// Go find the part numbers
-	parts := make([][]int, 0)
-	for i := 1; i < len(lines)-1; i++ {
-		line := lines[i]
-		lineParts := getParts(lines[i-1], line, lines[i+1])
-		parts = append(parts, lineParts)
-		fmt.Println(lineParts)
+	// Blow up the input into a grid where the whole part number is assigned to
+	// any point it occupies
+	parts := make([][]string, 0)
+	for _, line := range lines {
+		parts = append(parts, getLineSlice(line))
 	}
 
-	// Flatten and sum
-	s := 0
-	for _, ps := range parts {
-		for _, p := range ps {
-			s += p
+	// Go find the ratios
+	sumOfRatios := 0
+	for i := 1; i < len(parts)-1; i++ {
+		part := parts[i]
+		ratios := getGearRatioProducts(parts[i-1], part, parts[i+1])
+		for _, ratio := range ratios {
+			sumOfRatios += ratio
 		}
+		fmt.Println(ratios)
+		fmt.Println(sumOfRatios)
 	}
-	fmt.Println(s)
+
+	fmt.Println("final", sumOfRatios)
+
 }
