@@ -9,19 +9,21 @@ import (
 	"strings"
 )
 
+// func collapsePartNums(line []string) []string {
+// 	partMatches := regexp.MustCompile("[0-9]+")
+
+// }
+
 func updateLineMatches(line string, validSpaces []bool) []bool {
 	validMatches := regexp.MustCompile("[^.0-9]")
 
 	prevMatches := validMatches.FindAllStringIndex(line, -1)
 	for _, match := range prevMatches {
+		// Padding the input means we know there's no matches on the edge
 		i := match[0]
-		if i > 0 {
-			validSpaces[i-1] = true
-		}
+		validSpaces[i-1] = true
 		validSpaces[i] = true
-		if i < len(line)-1 {
-			validSpaces[i+1] = true
-		}
+		validSpaces[i+1] = true
 	}
 
 	return validSpaces
@@ -63,27 +65,24 @@ func getParts(prev string, line string, next string) []int {
 }
 
 func main() {
-	f, _ := os.Open("./input.txt")
+	f, _ := os.Open("./baby-input.txt")
 
 	scanner := bufio.NewScanner(f)
 
+	// Read the whole thing in, pad the edges
 	lines := []string{}
 	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
+		lines = append(lines, "."+scanner.Text()+".")
 	}
-
 	blankline := strings.Repeat(".", len(lines[0]))
-	parts := make([][]int, 0)
-	for i, line := range lines {
-		lineParts := make([]int, 0)
-		if i == 0 {
-			lineParts = getParts(blankline, line, lines[i+1])
-		} else if i == len(lines)-1 {
-			lineParts = getParts(lines[i-1], line, blankline)
+	lines = append([]string{blankline}, lines...)
+	lines = append(lines, blankline)
 
-		} else {
-			lineParts = getParts(lines[i-1], line, lines[i+1])
-		}
+	// Go find the part numbers
+	parts := make([][]int, 0)
+	for i := 1; i < len(lines)-1; i++ {
+		line := lines[i]
+		lineParts := getParts(lines[i-1], line, lines[i+1])
 		parts = append(parts, lineParts)
 		fmt.Println(lineParts)
 	}
