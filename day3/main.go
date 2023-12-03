@@ -31,9 +31,6 @@ func getLineSlice(line string) []string {
 		}
 	}
 
-	// fmt.Println(line)
-	// fmt.Println(lineSlice)
-
 	return lineSlice
 }
 
@@ -44,33 +41,38 @@ func getGearRatioProducts(prev []string, line []string, next []string) []int {
 	// Find all unique part numbers around the gear
 	// (Bug: what if there are two of the same part? )
 	for i := 1; i < len(line)-1; i++ {
-		partNumSet := map[string]int{}
 		target := line[i]
 		if target == "*" {
-			fmt.Println("found a gear")
-			// fmt.Println(prev)
-			// fmt.Println(line)
-			// fmt.Println(next)
-			partNumSet[prev[i-1]] += 1
-			partNumSet[prev[i]] += 1
-			partNumSet[prev[i+1]] += 1
-			partNumSet[line[i-1]] += 1
-			partNumSet[line[i+1]] += 1
-			partNumSet[next[i-1]] += 1
-			partNumSet[next[i]] += 1
-			partNumSet[next[i+1]] += 1
+			partNums := []string{
+				prev[i-1],
+				prev[i],
+				prev[i+1],
+				"",
+				line[i-1],
+				line[i+1],
+				"",
+				next[i-1],
+				next[i],
+				next[i+1],
+			}
 
-			delete(partNumSet, "")
-			if len(partNumSet) == 2 {
-				fmt.Println("It's good!", partNumSet)
+			prev := ""
+			current := ""
+			parts := []int{}
+			for _, partNum := range partNums {
+				current = partNum
+				if prev != current && current != "" {
+					currentInt, _ := strconv.Atoi(current)
+					parts = append(parts, currentInt)
+				}
+				prev = current
+			}
+			if len(parts) == 2 {
 				ratio := 1
-				for k, _ := range partNumSet {
-					intKey, _ := strconv.Atoi(k)
-					ratio = ratio * intKey
+				for _, p := range parts {
+					ratio = ratio * p
 				}
 				ratios = append(ratios, ratio)
-			} else {
-				fmt.Println("It's bad", partNumSet)
 			}
 		}
 	}
@@ -107,8 +109,6 @@ func main() {
 		for _, ratio := range ratios {
 			sumOfRatios += ratio
 		}
-		fmt.Println(ratios)
-		fmt.Println(sumOfRatios)
 	}
 
 	fmt.Println("final", sumOfRatios)
