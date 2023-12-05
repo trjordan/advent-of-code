@@ -15,25 +15,19 @@ type mappingData struct {
 	ranges [][3]int // destStart, sourceStart, length
 }
 
-func getElfMap(md mappingData) map[int]int {
-	// Do the logic, return a single transformation
+func getMapping(md mappingData, source int) int {
+	// Do the logic, return the number
 	// Fun fact: there's no need to think about the names? the input is strictly linear
-
-	elfMap := map[int]int{}
-	fmt.Println(md.source, md.dest)
 	for _, r := range md.ranges {
-		fmt.Println(r)
 		destStart := r[0]
 		sourceStart := r[1]
 		length := r[2]
-
-		diff := destStart - sourceStart
-		for i := sourceStart; i < sourceStart+length; i++ {
-			elfMap[i] = i + diff
+		if source >= sourceStart && source < sourceStart+length {
+			diff := destStart - sourceStart
+			return source + diff
 		}
 	}
-
-	return elfMap
+	return source
 }
 
 func main() {
@@ -57,14 +51,14 @@ func main() {
 	fmt.Println("hm")
 
 	// Parse the mapping data
-	mapLines := []mappingData{}
-	var mapLinesSubset mappingData
+	maps := []mappingData{}
+	var mapsSubset mappingData
 	for i := 2; i < len(lines); i++ {
 		line := lines[i]
 		if strings.HasSuffix(line, "map:") {
 			// Start a new map
 			names := strings.Split(strings.Split(line, " ")[0], "-")
-			mapLinesSubset = mappingData{
+			mapsSubset = mappingData{
 				source: names[0],
 				dest:   names[2],
 				ranges: [][3]int{},
@@ -75,33 +69,23 @@ func main() {
 			for i, n := range strings.Fields(line) {
 				ranges[i], _ = strconv.Atoi(n)
 			}
-			mapLinesSubset.ranges = append(mapLinesSubset.ranges, ranges)
+			mapsSubset.ranges = append(mapsSubset.ranges, ranges)
 		} else {
 			// We're done, append it to the list
-			mapLines = append(mapLines, mapLinesSubset)
+			maps = append(maps, mapsSubset)
 		}
 	}
 	// No newline at the end ef the file
-	mapLines = append(mapLines, mapLinesSubset)
-
-	fmt.Println("hm")
-
-	// Get a list of maps
-	elfMaps := []map[int]int{}
-	for _, md := range mapLines {
-		elfMaps = append(elfMaps, getElfMap(md))
-	}
+	maps = append(maps, mapsSubset)
 
 	fmt.Println("hm")
 
 	// Collaps the maps into seed -> location (first through last)
 	locations := make([]int, len(seeds))
 	copy(locations, seeds)
-	for i := 0; i < len(elfMaps); i++ {
+	for i := 0; i < len(maps); i++ {
 		for j := 0; j < len(seeds); j++ {
-			if elfMaps[i][locations[j]] != 0 {
-				locations[j] = elfMaps[i][locations[j]]
-			}
+			locations[j] = getMapping(maps[i], locations[j])
 		}
 	}
 
