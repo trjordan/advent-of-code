@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"math"
 	"os"
 	"regexp"
 	"sort"
@@ -48,7 +47,7 @@ func getPoints(winners []int, mine []int) int {
 		}
 	}
 
-	return int(math.Pow(float64(2), float64(matches)-1))
+	return matches // int(math.Pow(float64(2), float64(matches)-1))
 }
 
 func main() {
@@ -70,14 +69,27 @@ func main() {
 		w, m := getLineSlice(line)
 		winners = append(winners, w)
 		mine = append(mine, m)
-		fmt.Println(w)
-		fmt.Println(m)
-		fmt.Println("--")
 	}
 
-	points := 0
+	// We start with one of each card
+	numOfCards := make([]int, len(winners))
 	for i := 0; i < len(winners); i++ {
-		points += getPoints(winners[i], mine[i])
+		numOfCards[i] = 1
+	}
+
+	// Get the matches of each card, cascade
+	for i := 0; i < len(winners); i++ {
+		curCopies := numOfCards[i]
+		matches := getPoints(winners[i], mine[i])
+		for j := i + 1; j < i+matches+1; j++ {
+			numOfCards[j] += curCopies
+		}
+	}
+
+	// Sum up the points
+	points := 0
+	for i := 0; i < len(numOfCards); i++ {
+		points += numOfCards[i]
 	}
 
 	fmt.Println("points", points)
