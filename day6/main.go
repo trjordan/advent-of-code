@@ -79,6 +79,11 @@ func main() {
 	// Make time/distance pairs
 	times := strings.Fields(strings.Split(lines[0], ":")[1])
 	distances := strings.Fields(strings.Split(lines[1], ":")[1])
+
+	// oops, kerning! (part2 fix)
+	times = []string{strings.Join(times, "")}
+	distances = []string{strings.Join(distances, "")}
+
 	timeDistPairs := [][2]int{}
 	for i := 0; i < len(times); i++ {
 		time, _ := strconv.Atoi(times[i])
@@ -97,6 +102,6 @@ func main() {
 		totalProduct = totalProduct * (math.Abs(sol1-sol2) + 1)
 		fmt.Println(T, D, disc, sol1, sol2, (math.Abs(sol1-sol2) + 1))
 	}
-	fmt.Println("solution", totalProduct)
+	fmt.Println("solution", int(totalProduct))
 
 }
