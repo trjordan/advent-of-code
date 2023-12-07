@@ -39,32 +39,72 @@ func findTypeValue(m string) int {
 	maxValue := 0
 	for _, r := range m {
 		charMap[r] += 1
-		if charMap[r] > maxValue {
+		if charMap[r] > maxValue && r != 'J' {
 			maxValue = charMap[r]
 		}
 	}
 
+	numJokers := charMap['J']
+
 	if maxValue == 5 || maxValue == 4 {
 		// 4 or 5 of a kind -- add 1 to make space for full house
-		return maxValue + 1
+		//
+		// We can just add jokers here because we found 4 or 5 of a single
+		// non-joker anyway
+		return maxValue + 1 + numJokers
 	} else if maxValue == 3 && len(charMap) == 2 {
 		// full house
-		return 4
+		//
+		// Jokers upgrade to either 4 or 5 of a kind
+		return 4 + numJokers
 	} else if maxValue == 3 {
 		// 3 of a kind
-		return 3
+		//
+		// Jokers upgrade to either 4 or 5 of a kind
+		if numJokers > 0 {
+			return numJokers + 4
+		} else {
+			return 3
+		}
 	} else if maxValue == 2 && len(charMap) == 3 {
 		// 2 pair
-		return 2
+		//
+		// Since we found a non-joker pair:
+		// - A joker pair upgrades to 4-of-a-kind (5 value)
+		// - A single joker upgrades to full house (4 value)
+		if numJokers > 0 {
+			return numJokers + 3
+		} else {
+			return 2
+		}
 	} else if maxValue == 2 {
 		// Pair
-		return 1
-	} else if len(charMap) == 5 {
-		// High card
-		return 0
+		//
+		// - Single joker upgrades to 3 of a kind (value 3)
+		// - 2 jokers upgrades to 4 of a kind (value 5)
+		// - 3 jokers upgrades to 5 of a kind (value 6)
+		if numJokers > 1 {
+			return numJokers + 3
+		} else if numJokers == 1 {
+			return 3
+		} else {
+			return 1
+		}
 	}
-	// Nothing
-	return -1
+	// High card
+	//
+	// Jokers upgrade to N of a kind
+	if numJokers > 3 {
+		// 4 or 5 jokers are both 5 of a kind
+		return 6
+	} else if numJokers == 3 {
+		return 5
+	} else if numJokers == 2 {
+		return 3
+	} else if numJokers == 1 {
+		return 1
+	}
+	return 0
 }
 
 func compareHandCard(h1 string, h2 string) int {
@@ -80,7 +120,7 @@ func compareHandCard(h1 string, h2 string) int {
 		byte('8'): 8,
 		byte('9'): 9,
 		byte('T'): 10,
-		byte('J'): 11,
+		byte('J'): -1,
 		byte('Q'): 12,
 		byte('K'): 13,
 		byte('A'): 14,
@@ -114,13 +154,12 @@ func main() {
 
 	// sort!
 	slices.SortStableFunc(hands, compareHand)
-	//fmt.Println(hands)
 
 	// Compute the bids
 	totalWinnings := 0
 	for i, hand := range hands {
 		totalWinnings += (i + 1) * hand.bid
-		fmt.Println(hand, (i+1)*hand.bid, findTypeValue(hand.cards))
+		//fmt.Println(hand, (i+1)*hand.bid, findTypeValue(hand.cards))
 	}
 	fmt.Println("winnings", totalWinnings)
 }
