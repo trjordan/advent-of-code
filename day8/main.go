@@ -48,9 +48,20 @@ func main() {
 			curNodes = append(curNodes, n)
 		}
 	}
-	allZ := false
-	for !allZ {
-		for i := 0; i < len(directions) && !allZ; i++ {
+	allCycleFound := false
+	origNodes := make([]node, len(curNodes))
+	copy(origNodes, curNodes)
+	fmt.Println("original", origNodes)
+
+	// We're going to look for cycles individually, then do math to find the
+	// cycle time of all of them at once
+	cycleStarts := make([]int, len(origNodes))
+	cycleLengths := make([]int, len(origNodes))
+	cycleFound := make([]bool, len(origNodes))
+	for !allCycleFound {
+		for i := 0; i < len(directions) && !allCycleFound; i++ {
+
+			// Progress all the nodes at once
 			step := directions[i]
 			newCurNodes := []node{}
 			for _, curNode := range curNodes {
@@ -64,16 +75,37 @@ func main() {
 			curNodes = newCurNodes
 			steps += 1
 
-			allZ = true
-			for _, cur := range curNodes {
-				allZ = allZ && cur.name[2] == 'Z'
+			// Check if any of the nodes have hit a Z
+			for j, cur := range curNodes {
+				if cur.name[2] == 'Z' && !cycleFound[j] {
+					if cycleStarts[j] == 0 {
+						// First time we found the Z! Write it down
+						cycleStarts[j] = steps
+						fmt.Println("Found an initial Z", j, cycleLengths[j], cycleFound[j], steps)
+					} else {
+						// Second time! We can now know the cycle length, so
+						// compute and close the trapdoop
+						fmt.Println("Found a cycle", j, steps)
+						cycleLengths[j] = steps - cycleStarts[j]
+						cycleFound[j] = true
+					}
+				}
 			}
-			if steps == int(float64(steps)/1000000)*1000000 {
-				fmt.Println(steps)
-				fmt.Println(curNodes)
+
+			allCycleFound = true
+			for _, f := range cycleFound {
+				allCycleFound = allCycleFound && f
 			}
+			// if steps == int(float64(steps)/1000000)*1000000 {
+			// 	fmt.Println(steps)
+			// 	fmt.Println(curNodes)
+			// }
 		}
 	}
 
-	fmt.Println(steps)
+	// My answer is: 16,563,603,485,021
+	//fmt.Println(cycleStarts)
+	fmt.Println("put the following numbers into https://www.calculatorsoup.com/calculators/math/lcm.php")
+	fmt.Println(cycleLengths)
+	//fmt.Println(steps)
 }
