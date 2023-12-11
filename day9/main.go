@@ -17,13 +17,15 @@ func findParams(seq []int) int {
 	for i := 0; i < len(nextSeq); i++ {
 		allZeros = allZeros && (nextSeq[i] == 0)
 	}
-	finalVal := nextSeq[len(nextSeq)-1]
+	finalVal := nextSeq[0]
 	if allZeros {
 		// yay, we can return!
+		fmt.Println("base", finalVal)
 		return finalVal
 	} else {
 		// we must go deeper!
-		return finalVal + findParams(nextSeq)
+		fmt.Println("digging", finalVal)
+		return finalVal - findParams(nextSeq)
 	}
 }
 
@@ -49,7 +51,7 @@ func main() {
 	// - N is the number of times we have to take the derivative
 	total := 0
 	for _, seq := range sequences {
-		nextVal := findParams(seq) + seq[len(seq)-1]
+		nextVal := seq[0] - findParams(seq)
 		fmt.Println("Next value", nextVal)
 		total += nextVal
 	}
