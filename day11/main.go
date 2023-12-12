@@ -56,14 +56,14 @@ func main() {
 	extraRows := 0
 	for row, offset := range rowHasGalaxy {
 		if !offset {
-			extraRows += 1
+			extraRows += 999999
 		}
 		rowOffsets[row] = extraRows
 	}
 	extraCols := 0
 	for col, offset := range colHasGalaxy {
 		if !offset {
-			extraCols += 1
+			extraCols += 999999
 		}
 		colOffsets[col] = extraCols
 	}
