@@ -23,7 +23,7 @@ func numValidMatches(line string, nums []int, midMatch bool, depth int) int {
 	}
 
 	// Maybe we already know the answer!
-	key := line + string(fmt.Sprint(nums))
+	key := fmt.Sprintf(line, nums, midMatch)
 	val, ok := cache[key]
 	if ok {
 		return val
@@ -87,7 +87,6 @@ func main() {
 	// Recurse!!
 	totalMatches := 0
 	for i := 0; i < len(grid); i++ {
-		cache = map[string]int{}
 		line := grid[i]
 		nums := groupNums[i]
 		fmt.Println(line)
