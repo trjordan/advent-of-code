@@ -22,7 +22,7 @@ func transpose(lines []string) []string {
 	return ret
 }
 
-func findReflection(lines []string) int {
+func findReflection(lines []string, origReflection int) int {
 	// Find the initial reflection, then work our way out
 	for i := 1; i < len(lines); i++ {
 		currentReflection := 0 // Invalid reflection value -- implies a border at 0 / -1
@@ -39,14 +39,59 @@ func findReflection(lines []string) int {
 			}
 		}
 
-		// Found something, quit checking
-		if currentReflection != 0 {
-			fmt.Println("found a reflection", currentReflection)
+		// Found something new , quit checking
+		if currentReflection != 0 && currentReflection != origReflection {
 			return currentReflection
 		}
 	}
 
 	return 0
+}
+
+func findSmudgedReflections(grid []string, reflection int, isHorizontal bool) (int, bool) {
+	// Flip all grid squares by making a new grid each time
+	// Super efficient, I'm sure
+	for row := 0; row < len(grid); row++ {
+		for col := 0; col < len(grid[0]); col++ {
+			for _, newIsHorizontal := range []bool{false, true} {
+				newGrid := make([]string, len(grid))
+				copy(newGrid, grid)
+				if newGrid[row][col] == '#' {
+					newGrid[row] = newGrid[row][:col] + "." + newGrid[row][col+1:]
+				} else {
+					newGrid[row] = newGrid[row][:col] + "#" + newGrid[row][col+1:]
+				}
+
+				// Check both directions in this new grid
+				// Check if we have a new reflection
+				var newReflection int
+				if !newIsHorizontal {
+					newGrid = transpose(newGrid)
+				}
+				if isHorizontal == newIsHorizontal {
+					// Make sure we avoid returing the original one
+					newReflection = findReflection(newGrid, reflection)
+				} else {
+					newReflection = findReflection(newGrid, -1)
+
+				}
+
+				// Only update if this isn't the existing reflection
+				isSameReflection := newReflection == reflection && isHorizontal == newIsHorizontal
+				if newReflection != 0 && !isSameReflection {
+					// fmt.Println("New reflection!", newReflection, row, col, newIsHorizontal)
+					// fmt.Println("original grid")
+					// printGrid(grid)
+					// fmt.Println("new grid")
+					// printGrid(newGrid)
+					return newReflection, newIsHorizontal
+				}
+			}
+		}
+	}
+	fmt.Println("Found", reflection, isHorizontal)
+	printGrid(grid)
+	panic("Could not find a new reflection")
 }
 
 func main() {
@@ -70,12 +115,23 @@ func main() {
 
 	// Summarize
 	summary := 0
-	for i, grid := range grids {
-		fmt.Println("Checking horizontal", i)
-		reflection := findReflection(transpose(grid))
+	for _, grid := range grids {
+		// fmt.Println("Checking vertical", i)
+		reflection := findReflection(transpose(grid), -1)
+		isHorizontal := false
 		if reflection == 0 {
-			fmt.Println("Checking vertical", i)
-			reflection = findReflection(grid) * 100
+			reflection = findReflection(grid, -1)
+			// fmt.Println("Checking horizontal", i)
+			isHorizontal = true
+		}
+
+		reflection, isHorizontal = findSmudgedReflections(grid, reflection, isHorizontal)
+
+		// Add up to the thing
+		if isHorizontal {
+			reflection = reflection * 100
+		} else {
+			reflection = reflection
 		}
 		summary += reflection
 	}
