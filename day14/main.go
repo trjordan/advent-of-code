@@ -4,12 +4,23 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strings"
 )
 
 func printGrid(lines []string) {
 	for _, line := range lines {
 		fmt.Println(line)
 	}
+}
+
+func rotate(lines []string) []string {
+	ret := make([]string, len(lines[0]))
+	for i := len(lines) - 1; i >= 0; i-- {
+		for j := 0; j < len(lines[0]); j++ {
+			ret[j] += string(lines[i][j])
+		}
+	}
+	return ret
 }
 
 func transpose(lines []string) []string {
@@ -58,20 +69,28 @@ func rollRow(line string) string {
 			newLine += "."
 		}
 	}
-	fmt.Println("orig  ", line)
-	fmt.Println("rolled", newLine)
 
 	return newLine
 }
 
 // Roll all the boulders north
-func rollNorth(grid []string) []string {
+func rollWest(grid []string) []string {
 	newGrid := []string{}
-	for _, line := range transpose(grid) {
+	for _, line := range grid {
 		newLine := rollRow(line)
 		newGrid = append(newGrid, newLine)
 	}
-	return transpose(newGrid)
+	return newGrid
+}
+
+func multiRotate(grid []string, numRotations int, doRoll bool) []string {
+	for i := 0; i < numRotations; i++ {
+		grid = rotate(grid)
+		if doRoll {
+			grid = rollWest(grid)
+		}
+	}
+	return grid
 }
 
 // Walk through and get the total load
@@ -99,8 +118,38 @@ func main() {
 		grid = append(grid, scanner.Text())
 
 	}
+	// Prep since west is the easy way to roll
+	printGrid(grid)
+	grid = multiRotate(grid, 2, false)
+	cycleMap := map[string]int{}       // flattened grid -> step num
+	targetIterations := 1000000000 - 1 // stupid puzzle counts from 1
+	for i := 0; i < targetIterations; i++ {
+		grid = multiRotate(grid, 4, true)
 
-	total := sumWeight(rollNorth(grid))
+		// Manual check
+		// fmt.Println("after ", i, sumWeight(multiRotate(grid, 2, false)))
+		// printGrid(multiRotate(grid, 2, false))
+
+		// Check for cycles
+		cycleKey := strings.Join(multiRotate(grid, 2, false), "")
+		prevIteration, ok := cycleMap[cycleKey]
+		if ok {
+			// We found a cycle! Fast-forward to the next partial cycle, to
+			// match what it would be at targetIterations
+			cycleLength := i - prevIteration
+			offset := (targetIterations - i) % cycleLength
+			fmt.Println("Found cycle ", cycleLength, i, offset)
+			grid = multiRotate(grid, offset*4, true)
+			break
+		}
+		// Store the key, keep going
+		cycleMap[cycleKey] = i
+	}
+
+	grid = multiRotate(grid, 2, false)
+	total := sumWeight(grid)
+	fmt.Println("final grid")
+	printGrid(grid)
 	fmt.Println("total", total)
 
 }
