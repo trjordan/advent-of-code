@@ -88,10 +88,10 @@ func updateNextNode(n *node, grid []string) {
 	fmt.Println("starting on", n.tile, n.dir)
 
 	for nextTile := n.tile; ; nextTile = incrUnsafe(nextTile, n.dir) {
-		fmt.Println("working on", nextTile)
+		// fmt.Println("working on", nextTile)
 		if !isValidTile(nextTile, grid) {
 			// Whoops, off the edge! Good enough
-			fmt.Println("bye bye")
+			// fmt.Println("bye bye")
 			break
 		}
 		n.energized = append(n.energized, nextTile)
@@ -101,9 +101,9 @@ func updateNextNode(n *node, grid []string) {
 			!(nextChr == "-" && strings.Contains("lr", n.dir)) &&
 			!(nextChr == "|" && strings.Contains("ud", n.dir)) {
 			// Found a reason to move on!
-			fmt.Println("bouncing at", nextTile)
+			// fmt.Println("bouncing at", nextTile)
 			nextNodes := bounceUnsafe(nextTile, nextChr, n.dir)
-			fmt.Println("found", len(nextNodes))
+			// fmt.Println("found", len(nextNodes))
 			for i := 0; i < len(nextNodes); i++ {
 				if isValidNode(nextNodes[i], grid) {
 					fmt.Println("Adding", &nextNodes[i].tile)
@@ -121,21 +121,11 @@ func getKey(n node) string {
 	return fmt.Sprintf("%v,%v,%v", n.tile.row, n.tile.col, n.dir)
 }
 
-func main() {
-	f, _ := os.Open("./input.txt")
-
-	scanner := bufio.NewScanner(f)
-	grid := []string{}
-	for scanner.Scan() {
-		grid = append(grid, scanner.Text())
-	}
+func findEnergized(startNode node, grid []string) map[string]bool {
 
 	// Let's make a graph!
-	allNodes := []node{{
-		mirror: "",
-		dir:    "r",
-		tile:   tile{row: 0, col: 0},
-	}}
+	allNodes := []node{}
+	allNodes = append(allNodes, startNode)
 	seen := map[string]bool{}      // key is row,col,dir
 	energized := map[string]bool{} // key is row,col. ALso, TODO, make a proper graph traversal!!
 	for len(allNodes) > 0 {
@@ -147,9 +137,7 @@ func main() {
 		seen[getKey(n)] = true
 		// Queue the next nodes (breadth-first)
 		for i := 0; i < len(n.next); i++ {
-			fmt.Println("considering adding", n.next[i], getKey(*n.next[i]))
 			if !seen[getKey(*n.next[i])] {
-				fmt.Println("truly added", n.next[i], getKey(*n.next[i]))
 				allNodes = append(allNodes, *n.next[i])
 			}
 		}
@@ -164,11 +152,60 @@ func main() {
 		}
 	}
 
+	return energized
+}
+
+func main() {
+	f, _ := os.Open("./input.txt")
+
+	scanner := bufio.NewScanner(f)
+	grid := []string{}
+	for scanner.Scan() {
+		grid = append(grid, scanner.Text())
+	}
+
+	best := map[string]bool{}
+	candidates := []node{}
+	// entering from the rows
+	for i := 0; i < len(grid); i++ {
+		candidates = append(candidates, node{
+			mirror: "",
+			dir:    "r",
+			tile:   tile{row: i, col: 0},
+		})
+		candidates = append(candidates, node{
+			mirror: "",
+			dir:    "l",
+			tile:   tile{row: i, col: len(grid[0]) - 1},
+		})
+	}
+	for i := 0; i < len(grid[0]); i++ {
+		candidates = append(candidates, node{
+			mirror: "",
+			dir:    "d",
+			tile:   tile{row: 0, col: i},
+		})
+		candidates = append(candidates, node{
+			mirror: "",
+			dir:    "u",
+			tile:   tile{row: len(grid) - 1, col: i},
+		})
+	}
+	fmt.Println(candidates)
+
+	for _, candidate := range candidates {
+		energized := findEnergized(candidate, grid)
+		if len(energized) > len(best) {
+			best = energized
+			fmt.Println("found new best", len(best), candidate)
+		}
+	}
+
 	// pretty print
 	for i := 0; i < len(grid); i++ {
 		fmt.Printf("%03d ", i)
 		for j := 0; j < len(grid[0]); j++ {
-			if energized[fmt.Sprintf("%v,%v", i, j)] {
+			if best[fmt.Sprintf("%v,%v", i, j)] {
 				fmt.Print("#")
 			} else {
 				fmt.Print(".")
@@ -176,6 +213,6 @@ func main() {
 		}
 		fmt.Print("\n")
 	}
-	fmt.Println("total", len(energized))
+	fmt.Println("best total", len(best))
 
 }
