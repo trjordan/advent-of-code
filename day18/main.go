@@ -160,7 +160,7 @@ func main() {
 		numSteps, _ := strconv.ParseInt(fields[1], 16, 32)
 		dir := map[string]string{"0": "R", "1": "D", "2": "L", "3": "U"}[fields[2]]
 
-		fmt.Println("input", dir, numSteps, fields)
+		fmt.Println("input step", dir, numSteps, fields)
 		fmt.Println(curPoint)
 		if len(points) == 0 {
 			curPoint = Point{row: 0, col: 0, idx: 0, dir: dir}
@@ -176,7 +176,7 @@ func main() {
 
 	points = Reindex(points)
 	for _, p := range points {
-		fmt.Println("hmm", p)
+		fmt.Println("Coordinates", p)
 	}
 
 	// Add breakpoints
@@ -196,7 +196,6 @@ func main() {
 		cols = append(cols, col)
 	}
 	slices.Sort(cols)
-	fmt.Println("cols", cols)
 
 	newPoints := []Point{}
 	for _, p := range points {
@@ -246,10 +245,14 @@ func main() {
 	points = Reindex(newPoints)
 
 	// Now we look for all U/D edges on the interior. Their width is the
-	// distance to the next U/D edge.
+	// distance to the next U/D edge. (Incidentally, this is all U edges,
+	// because both the example and my puzzle input are built clockwise. But, it
+	// could be the other way, unclear if this code 100% works for that input.)
 	//
-	// We know there's a point there, because we've added extra points at every
-	// intersection
+	// We sum the rectangles build right-down from these points, where the
+	// rectangle is on the interior. We can find the width/height just by
+	// looking for the next point in that row/col, because we've added synthetic
+	// points to every edge.
 	total := 0
 	downTotals := 0
 	for _, p := range points {
@@ -292,24 +295,7 @@ func main() {
 			downTotals += edgeArea
 		}
 	}
-	// printGrid(points)
+	// printGrid(points) // This only works for tiny grids, part-1 style
 	fmt.Println("total", total, downTotals, total+downTotals)
-
-	// Sort, so we're working top-down
-	// sort.Slice(points, func(i int, j int) bool {
-	// 	if points[i].row != points[j].row {
-	// 		return points[i].row < points[j].row
-	// 	} else {
-	// 		return points[i].col < points[j].col
-	// 	}
-	// })
-
-	// numPoints := 0
-	// for _, p := range points {
-	// 	if p.RectIsInterior(points) {
-	// 		numPoints += p.SizeOfRect(points)
-	// 	}
-	// 	// fmt.Println(p, p.forward(points), p.RectIsInterior(points))
-	// }
 
 }
