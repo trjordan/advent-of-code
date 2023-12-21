@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 )
 
@@ -57,6 +58,19 @@ func (p Part) rating() int {
 	return p["x"] + p["m"] + p["a"] + p["s"]
 }
 
+func unique(input []int) []int {
+	intMap := map[int]bool{}
+	for _, i := range input {
+		intMap[i] = true
+	}
+	uniqueInts := []int{}
+	for i, _ := range intMap {
+		uniqueInts = append(uniqueInts, i)
+	}
+	slices.Sort(uniqueInts)
+	return uniqueInts
+}
+
 func main() {
 	f, _ := os.Open("./input.txt")
 
@@ -90,32 +104,57 @@ func main() {
 
 	}
 
-	// Parse the parts
-	parts := []Part{}
-	for scanner.Scan() {
-		line := scanner.Text()
-		partMatcher := regexp.MustCompile(`=([0-9]+)`)
-		pmatch := partMatcher.FindAllStringSubmatch(line, -1)
-		fmt.Println(pmatch)
-		x, _ := strconv.Atoi(pmatch[0][1])
-		m, _ := strconv.Atoi(pmatch[1][1])
-		a, _ := strconv.Atoi(pmatch[2][1])
-		s, _ := strconv.Atoi(pmatch[3][1])
-		parts = append(parts, Part{"x": x, "m": m, "a": a, "s": s})
-
-	}
-
-	totalRating := 0
-	for i, p := range parts {
-		res := p.process("in", workflows)
-		if res {
-			fmt.Println("valid part", i, p.rating())
-			totalRating += p.rating()
-		} else {
-			fmt.Println("invalid part", i)
+	// Figure out how many distinct ranges we have
+	breakpoints := map[string][]int{} // (x m a s) -> list of breakpoints
+	breakpoints["x"] = []int{1, 4001}
+	breakpoints["m"] = []int{1, 4001}
+	breakpoints["a"] = []int{1, 4001}
+	breakpoints["s"] = []int{1, 4001}
+	for _, w := range workflows {
+		for _, c := range w {
+			if c.op == "<" {
+				breakpoints[c.field] = append(breakpoints[c.field], c.val)
+			} else if c.op == ">" {
+				breakpoints[c.field] = append(breakpoints[c.field], c.val+1)
+			}
 		}
 	}
+	breakpoints["x"] = unique(breakpoints["x"])
+	breakpoints["m"] = unique(breakpoints["m"])
+	breakpoints["a"] = unique(breakpoints["a"])
+	breakpoints["s"] = unique(breakpoints["s"])
+	fmt.Println(breakpoints)
 
-	fmt.Println("total valid rating", totalRating)
+	// Parse the parts
+	totalSize := 0
+	for ix := 1; ix < len(breakpoints["x"]); ix++ {
+		x := breakpoints["x"][ix] - 1
+		fmt.Println("progress", ix, len(breakpoints["x"]))
+		for im := 1; im < len(breakpoints["m"]); im++ {
+			m := breakpoints["m"][im] - 1
+			for ia := 1; ia < len(breakpoints["a"]); ia++ {
+				a := breakpoints["a"][ia] - 1
+				for is := 1; is < len(breakpoints["s"]); is++ {
+					s := breakpoints["s"][is] - 1
+					part := Part{"x": x, "m": m, "a": a, "s": s}
+					if part.process("in", workflows) {
+						// fmt.Println("valid range", x, m, a, s)
+						rangeSize := (breakpoints["x"][ix] - breakpoints["x"][ix-1]) *
+							(breakpoints["m"][im] - breakpoints["m"][im-1]) *
+							(breakpoints["a"][ia] - breakpoints["a"][ia-1]) *
+							(breakpoints["s"][is] - breakpoints["s"][is-1])
+						// fmt.Println("range sizes", rangeSize,
+						// 	breakpoints["x"][ix]-breakpoints["x"][ix-1],
+						// 	breakpoints["m"][im]-breakpoints["m"][im-1],
+						// 	breakpoints["a"][ia]-breakpoints["a"][ia-1],
+						// 	breakpoints["s"][is]-breakpoints["s"][is-1],
+						// )
+						totalSize += rangeSize
+					}
+				}
+			}
+		}
+	}
+	fmt.Println("total size", totalSize)
 
 }
