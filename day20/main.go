@@ -30,19 +30,21 @@ type Pulse struct {
 func (m Module) sendPulses(pulseIsHigh bool, modules ModuleMap) []Pulse {
 	pulses := []Pulse{}
 	for _, d := range m.dests {
-		// fmt.Printf("Sending pulse:  %v %v -> %v\n", d, pulseIsHigh, d)
+		// fmt.Printf("Creating pulse:  %v %v -> %v\n", m.name, pulseIsHigh, d)
 		pulses = append(pulses, Pulse{source: m.name, dest: d, isHigh: pulseIsHigh})
 	}
 	return pulses
 }
 
 func process(p Pulse, modules ModuleMap) []Pulse {
-	m := modules[p.dest]
+	m, exists := modules[p.dest]
 	pulseIsHigh := p.isHigh
-	pulseSource := p.dest
+	pulseSource := p.source
 
 	var pulses []Pulse
-	if m.op == "%" {
+	if !exists {
+		fmt.Println("dummy node")
+	} else if m.op == "%" {
 		if pulseIsHigh {
 			// Ignored
 		} else {
@@ -59,6 +61,7 @@ func process(p Pulse, modules ModuleMap) []Pulse {
 		}
 	} else if m.op == "&" {
 		m.conjMap[pulseSource] = pulseIsHigh
+		fmt.Println("conjmap", m.conjMap)
 		allHigh := true
 		for _, isHigh := range m.conjMap {
 			if !isHigh {
@@ -76,18 +79,38 @@ func process(p Pulse, modules ModuleMap) []Pulse {
 }
 
 func main() {
-	f, _ := os.Open("./baby-input.txt")
+	f, _ := os.Open("./input.txt")
 
 	scanner := bufio.NewScanner(f)
 
 	// Parse the modules
 	modules := ModuleMap{}
+	conjMaps := map[string][]string{}
 	for scanner.Scan() {
 		line := scanner.Text()
 		matcher := regexp.MustCompile(`(.)(.*) -> (.+)`)
 		fields := matcher.FindStringSubmatch(line)
-		m := Module{op: fields[1], name: fields[2], dests: strings.Split(fields[3], ", "), conjMap: map[string]bool{}}
+		name := fields[2]
+		dests := strings.Split(fields[3], ", ")
+		m := Module{op: fields[1], name: name, dests: dests, conjMap: map[string]bool{}}
+		// Capture who points where
+		for _, d := range dests {
+			conjMaps[d] = append(conjMaps[d], name)
+		}
 		modules[m.name] = &m
+	}
+
+	// Fix up all the conj modules
+	for _, m := range modules {
+		cm := map[string]bool{}
+		for _, n := range conjMaps[m.name] {
+			cm[n] = false
+		}
+		m.conjMap = cm
+	}
+
+	for _, m := range modules {
+		fmt.Println(*m)
 	}
 
 	var low, high int
