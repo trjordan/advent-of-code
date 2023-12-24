@@ -79,8 +79,42 @@ func printGrid(plots PlotMap, steps int) {
 	}
 }
 
+func countReachable(numSteps int, startPlot *Plot, plots PlotMap) int {
+	// Reset the plots, we're re-using it
+	for i := 0; i < len(plots); i++ {
+		for j := 0; j < len(plots[0]); j++ {
+			plots[i][j].minDistance = 0
+			plots[i][j].isStart = false
+		}
+	}
+
+	// fmt.Println("start point", startPlot)
+
+	// Update all the distances
+	queue := []*Plot{}
+	queue = append(queue, startPlot)
+	for len(queue) > 0 {
+		p := queue[0]
+		queue = queue[1:]
+		toUpdate := p.updateAdjacencies(plots)
+		queue = append(queue, toUpdate...)
+	}
+
+	// Figure out how many are reachable
+	numValid := 0
+	for i := 0; i < len(plots); i++ {
+		for j := 0; j < len(plots[0]); j++ {
+			if isReachable(plots[i][j].walkable, plots[i][j].minDistance, numSteps) {
+				numValid += 1
+			}
+		}
+	}
+
+	return numValid
+}
+
 func main() {
-	f, _ := os.Open("./input.txt")
+	f, _ := os.Open("./baby-input.txt")
 
 	scanner := bufio.NewScanner(f)
 
@@ -115,29 +149,68 @@ func main() {
 		}
 	}
 
-	fmt.Println("start point", startPlot)
+	fmt.Println(startPlot)
 
-	// Update all the distances
-	queue := []*Plot{}
-	queue = append(queue, &startPlot)
-	for len(queue) > 0 {
-		p := queue[0]
-		queue = queue[1:]
-		toUpdate := p.updateAdjacencies(plots)
-		queue = append(queue, toUpdate...)
-	}
+	// steps := 15
+	// edgeSize := len(plots) - 2
+	edgeSize := 11
+	fmt.Println("plots size", edgeSize)
+	for steps := 0; steps < 50; steps++ {
 
-	// Figure out how many are reachable
-	steps := 64
-	numValid := 0
-	for i := 0; i < len(plots); i++ {
-		for j := 0; j < len(plots[0]); j++ {
-			if isReachable(plots[i][j].walkable, plots[i][j].minDistance, steps) {
-				numValid += 1
-			}
+		// 3^2 - 4 (1 * (1+1) / 2 * 4)
+		// 5^2 - 12 (2 * (2+1) / 2 * 4
+		// 7^2 - 24 ((7-2) * 4)
+
+		// How many boxes from the center do we need to consider? For an 11-grid:
+		// 5 steps -> 1
+		// 6 - 16 steps -> 2
+		// 17 - 18 steps -> 3
+		// etc.
+		halfSize := (edgeSize - 1) / 2 // lower -- size of 11, this is 5
+		linear := (halfSize + steps) / edgeSize
+
+		// What is the total size of the grid we have to consider?
+		// 5 steps -> 1
+		// 6 - 16 steps -> 5
+		// 17 - 28 steps -> 13
+		fullSquare := (2*linear + 1)
+
+		// How many squares are fully reachable? Meaning: if steps = row + col,
+		// you can get from anywhere on any edge to any point.
+		// fullSquare 1 -> 1 full square
+		// fullSquare 3 -> 5 full squares
+		// fullSquare 5 -> 13 full squares
+		numFullSquares := fullSquare*fullSquare - (linear+1)*linear*2
+		// countFullSquares := countReachable(edgeSize*2, &startPlot, plots) // Only need edgeSize for real input, but baby is tougher
+		// fmt.Println("num / count of squares", numFullSquares, countFullSquares)
+
+		// How many squares are on the edges of the diamond and identical to a
+		// square that's 45 degrees from the origin?
+		// 0-6 steps -> 0
+		// 11-23 steps -> 1
+		// 24 - 56 steps -> 3
+		// etc.
+		var numDiagSquares int
+		if steps <= halfSize {
+			numDiagSquares = 0
+		} else {
+			numDiagSquares = ((steps+halfSize+edgeSize)/2/edgeSize)*2 - 1
 		}
-	}
-	printGrid(plots, steps)
-	fmt.Println("num valid", numValid)
+		// countDiagSquares := countReachable(edgeSize, plots[1][1], plots)
+		// fmt.Println("num / count of diags", numDiagSquares, countDiagSquares)
 
+		// How many squares are on the edges of the diamond and identical to a
+		// square that's NOT 45 degrees from the origin?
+		// 0-16 steps -> 0
+		// 17-29 steps -> 2
+		// 30 - 52 steps -> 4
+		// etc.
+		numOffsetSquares := (steps - 1) / edgeSize / 2 * 2
+		// countOffsetSquares := countReachable(edgeSize, &startPlot, plots)
+		// fmt.Println("num / count of offsets", numOffsetSquares, countOffsetSquares)
+
+		isTwoCap := (steps % edgeSize) > halfSize
+
+		fmt.Println(steps, linear, numFullSquares, numDiagSquares, numOffsetSquares, isTwoCap)
+	}
 }
