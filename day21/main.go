@@ -99,6 +99,8 @@ func countReachable(numSteps int, startPlot *Plot, plots PlotMap) int {
 		toUpdate := p.updateAdjacencies(plots)
 		queue = append(queue, toUpdate...)
 	}
+	// Manually correct the start plot
+	startPlot.minDistance = 0
 
 	// Figure out how many are reachable
 	numValid := 0
@@ -114,7 +116,7 @@ func countReachable(numSteps int, startPlot *Plot, plots PlotMap) int {
 }
 
 func main() {
-	f, _ := os.Open("./baby-input.txt")
+	f, _ := os.Open("./input2.txt")
 
 	scanner := bufio.NewScanner(f)
 
@@ -151,11 +153,33 @@ func main() {
 
 	fmt.Println(startPlot)
 
-	// steps := 15
-	// edgeSize := len(plots) - 2
-	edgeSize := 11
+	// steps := 13
+	// 487562418588924 is too low
+	// 639169665638614 is too high
+	// 5676619607130050 is too high
+
+	edgeSize := len(plots) - 2
+	halfSize := (edgeSize - 1) / 2 // lower -- size of 11, this is 5
 	fmt.Println("plots size", edgeSize)
-	for steps := 0; steps < 50; steps++ {
+
+	corners := []*Plot{
+		plots[1][1],
+		plots[1][len(plots[0])-2],
+		plots[len(plots)-2][1],
+		plots[len(plots)-2][len(plots[0])-2],
+	}
+	midPoints := []*Plot{
+		plots[1][halfSize+1],
+		plots[halfSize+1][1],
+		plots[len(plots)-2][halfSize+1],
+		plots[halfSize+1][len(plots[0])-2],
+	}
+	fmt.Println("corners", corners)
+	fmt.Println("midpoints", midPoints)
+
+	for steps := 7; steps < 101; steps += 2 {
+
+		total := 0
 
 		// 3^2 - 4 (1 * (1+1) / 2 * 4)
 		// 5^2 - 12 (2 * (2+1) / 2 * 4
@@ -164,25 +188,69 @@ func main() {
 		// How many boxes from the center do we need to consider? For an 11-grid:
 		// 5 steps -> 1
 		// 6 - 16 steps -> 2
-		// 17 - 18 steps -> 3
+		// 17 - 27 steps -> 3
 		// etc.
-		halfSize := (edgeSize - 1) / 2 // lower -- size of 11, this is 5
 		linear := (halfSize + steps) / edgeSize
 
-		// What is the total size of the grid we have to consider?
-		// 5 steps -> 1
-		// 6 - 16 steps -> 5
-		// 17 - 28 steps -> 13
-		fullSquare := (2*linear + 1)
+		// How many squares are fully reachable, in the same way as the starting
+		// square? Meaning: if steps = row + col, you can get from anywhere on any
+		// edge to any point.
+		// linear 1 -> 1 full square -> 1 even square
+		// linear 2 -> 5 full squares -> 1 even
+		// linear 3 -> 13 full squares -> 9 even
+		// linear 4 -> 25 full squares -> 9 even
+		var adjustedLinear, numFullSquares, countFullSquares, totalFullSquares int
+		if steps < halfSize*2 {
+			// weirdo case we don't really care about, but handle it anyway
+			adjustedLinear = 1
+			numFullSquares = 0
+			countFullSquares = countReachable(steps, &startPlot, plots)
+			totalFullSquares = countFullSquares
+		} else {
+			adjustedLinear = 1 + (steps-2*halfSize)/(edgeSize)
+			if adjustedLinear%2 == 1 {
+				numFullSquares = adjustedLinear * adjustedLinear
+			} else {
+				numFullSquares = (adjustedLinear - 1) * (adjustedLinear - 1)
 
-		// How many squares are fully reachable? Meaning: if steps = row + col,
-		// you can get from anywhere on any edge to any point.
-		// fullSquare 1 -> 1 full square
-		// fullSquare 3 -> 5 full squares
-		// fullSquare 5 -> 13 full squares
-		numFullSquares := fullSquare*fullSquare - (linear+1)*linear*2
-		// countFullSquares := countReachable(edgeSize*2, &startPlot, plots) // Only need edgeSize for real input, but baby is tougher
-		// fmt.Println("num / count of squares", numFullSquares, countFullSquares)
+			}
+			// Only need edgeSize for real input, but baby is tougher
+			// Also, there's "odd" and "even" squares here
+			countFullSquares = countReachable(edgeSize+steps%2+1, &startPlot, plots)
+			totalFullSquares = numFullSquares * countFullSquares
+		}
+		total += totalFullSquares
+		fmt.Println("num / count of squares", numFullSquares, countFullSquares, numFullSquares*countFullSquares)
+
+		// How many squares are fully reachable, but with the inverse odd/even
+		// pattern as the starting square? Meaning: if steps = row + col, you can
+		// get from anywhere on any edge to any point.
+		// linear 1 -> 1 full square -> 0 odd square
+		// linear 2 -> 5 full squares -> 4 odd square
+		// linear 3 -> 13 full squares -> 4 odd square
+		// linear 4 -> 25 full squares -> 16 odd square
+		var numInverseSquares, countInverseSquares, totalInverseSquares int
+		if steps < halfSize*2 {
+			// weirdo case we don't really care about, but handle it anyway
+			numInverseSquares = 0
+			countInverseSquares = countReachable(steps, &startPlot, plots)
+			totalInverseSquares = countFullSquares
+		} else {
+			if adjustedLinear%2 == 0 {
+				numInverseSquares = adjustedLinear * adjustedLinear
+			} else {
+				numInverseSquares = (adjustedLinear - 1) * (adjustedLinear - 1)
+			}
+			// Only need edgeSize for real input, but baby is tougher
+			// Also, there's "odd" and "even" squares here
+			countInverseSquares = countReachable(edgeSize+steps%2, &startPlot, plots)
+			totalInverseSquares = numInverseSquares * countInverseSquares
+		}
+		total += totalInverseSquares
+		fmt.Println(
+			"num / count of inverse squares",
+			numInverseSquares, countInverseSquares, numFullSquares*countInverseSquares,
+		)
 
 		// How many squares are on the edges of the diamond and identical to a
 		// square that's 45 degrees from the origin?
@@ -190,27 +258,75 @@ func main() {
 		// 11-23 steps -> 1
 		// 24 - 56 steps -> 3
 		// etc.
-		var numDiagSquares int
-		if steps <= halfSize {
+		numDiagSquares := 1 + (steps-(halfSize*2+2))/(edgeSize*2)*2
+		if steps < halfSize*2+2 {
+			// Too small, reset
 			numDiagSquares = 0
-		} else {
-			numDiagSquares = ((steps+halfSize+edgeSize)/2/edgeSize)*2 - 1
+		} else if steps%edgeSize == 0 {
+			// Pure intersection, all diag candidates are either 0 or counted as full
+			numDiagSquares = 0
 		}
-		// countDiagSquares := countReachable(edgeSize, plots[1][1], plots)
-		// fmt.Println("num / count of diags", numDiagSquares, countDiagSquares)
+		for _, corner := range corners {
+			diagSteps := (steps - (edgeSize + 1)) % (edgeSize * 2)
+			countDiagSquares := countReachable(diagSteps, corner, plots)
+			total += numDiagSquares * countDiagSquares
+			fmt.Println("num / count of diags", numDiagSquares, countDiagSquares, diagSteps, corner)
+			// printGrid(plots, diagSteps)
+		}
 
 		// How many squares are on the edges of the diamond and identical to a
 		// square that's NOT 45 degrees from the origin?
 		// 0-16 steps -> 0
 		// 17-29 steps -> 2
-		// 30 - 52 steps -> 4
+		// 42-53 steps -> 4
 		// etc.
-		numOffsetSquares := (steps - 1) / edgeSize / 2 * 2
-		// countOffsetSquares := countReachable(edgeSize, &startPlot, plots)
-		// fmt.Println("num / count of offsets", numOffsetSquares, countOffsetSquares)
+		startingOffset := halfSize*2 + 2 + edgeSize
+		numOffsetSquares := 2 + (steps-startingOffset)/(edgeSize*2)*2
+		if steps < startingOffset {
+			// Small enough values that we don't have any -- these are handled
+			// by two-caps
+			numOffsetSquares = 0
+		} else if steps%edgeSize == edgeSize-1 {
+			// Skimming the edges, these are counted as full
+			numOffsetSquares = 0
+		}
+		for _, corner := range corners {
+			offsetSteps := (steps - startingOffset) % (edgeSize * 2)
+			countOffsetSquares := countReachable(offsetSteps, corner, plots)
+			total += numOffsetSquares * countOffsetSquares
+			fmt.Println(
+				"num / count of offsets",
+				numOffsetSquares, countOffsetSquares, offsetSteps, corner,
+			)
+		}
 
-		isTwoCap := (steps % edgeSize) > halfSize
+		// Do we have 1 or 2 squares along each axis that aren't fully filled in?
+		//
+		// isTwoCap := (steps%edgeSize) > halfSize && ((steps+1)%edgeSize) != 0
+		isTwoCap := (steps-halfSize)%edgeSize < halfSize && (steps-halfSize)%edgeSize != 0
+		for _, mid := range midPoints {
+			endcapSteps := (steps - (halfSize + 1)) % edgeSize
+			countEndSquare := countReachable(endcapSteps, mid, plots)
+			fmt.Println("endcaps steps", endcapSteps, countEndSquare, endcapSteps, mid)
+			// printGrid(plots, endcapSteps)
+			total += countEndSquare
+			if isTwoCap {
+				almostEndcapSteps := endcapSteps + edgeSize
+				countAlmostEndSquare := countReachable(almostEndcapSteps, mid, plots)
+				// printGrid(plots, almostEndcapSteps)
+				fmt.Println("2x endcaps steps", endcapSteps+edgeSize, countAlmostEndSquare, almostEndcapSteps, mid)
+				total += countAlmostEndSquare
+			}
+		}
 
-		fmt.Println(steps, linear, numFullSquares, numDiagSquares, numOffsetSquares, isTwoCap)
+		fmt.Println(fmt.Sprintf("%02d", steps), linear, numFullSquares, numDiagSquares, numOffsetSquares, isTwoCap, total)
+
+		// Simplified check, no barriers
+		newTotal := (steps + 1) * (steps + 1)
+		fmt.Println("simple check", newTotal)
+
+		if newTotal != total {
+			panic("Failed simple check")
+		}
 	}
 }
