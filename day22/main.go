@@ -68,7 +68,7 @@ func (b Brick) MakeFallenBrick(newZ1 int) Brick {
 func (b Brick) SettleDown(below Brick) (Brick, bool) {
 	// Check for badly intersecting
 	if b.IsXYIntersecting(below) && b.IsZIntersecting(below) {
-		//fmt.Println("uh oh", b, below, b.IsRestingOn(below))
+		fmt.Println("uh oh", b, below, b.IsRestingOn(below))
 		panic("Got into a bad state, trying to settle overlapping bricks")
 	}
 
@@ -89,34 +89,79 @@ func (b Brick) SettleDown(below Brick) (Brick, bool) {
 	return b.MakeFallenBrick(1), true
 }
 
-func SettleAll(bricks []Brick) ([]Brick, bool) {
-	somethingChanged := false
-	ground := Brick{0, 0, 0, 0, 0, 0, "ground"}
-	for i := 0; i < len(bricks); i++ {
-		fmt.Println("Working on", bricks[i])
-		bestCandidate, bestIsChange := bricks[i].SettleDown(ground)
-		for j := 0; j < i; j++ {
-			nextCandidate, changed := bricks[i].SettleDown(bricks[j])
-			fmt.Println("Attempting settling to", bricks[j], nextCandidate)
-			if !changed {
-				// Found a supporting brick, we're done
-				//fmt.Println("Existing support")
-				bestIsChange = false
-			} else if nextCandidate.z1 > bestCandidate.z1 {
-				// Found a higher support than the previous
-				//fmt.Println("Higher support")
-				bestCandidate = nextCandidate
+func SettleAll(bricks []Brick) ([]Brick, int) {
+	changedMap := make(map[string]bool)
+
+	needsSettling := true
+	for needsSettling {
+		needsSettling = false
+
+		ground := Brick{0, 0, 0, 0, 0, 0, "ground"}
+		for i := 0; i < len(bricks); i++ {
+			//fmt.Println("Working on", bricks[i])
+			bestCandidate, bestIsChange := bricks[i].SettleDown(ground)
+			for j := 0; j < i; j++ {
+				nextCandidate, changed := bricks[i].SettleDown(bricks[j])
+				//fmt.Println("Attempting settling to", bricks[j], nextCandidate)
+				if !changed {
+					// Found a supporting brick, we're done
+					//fmt.Println("Existing support")
+					bestIsChange = false
+				} else if nextCandidate.z1 > bestCandidate.z1 {
+					// Found a higher support than the previous
+					//fmt.Println("Higher support")
+					bestCandidate = nextCandidate
+				}
+			}
+			if bestIsChange {
+				//fmt.Println("Something changed, went with", bestCandidate)
+				bricks[i] = bestCandidate
+				changedMap[bricks[i].label] = true
+				needsSettling = true
+			} else {
+				//fmt.Println("Did nothing", bricks[i])
 			}
 		}
-		if bestIsChange {
-			//fmt.Println("Something changed, went with", bestCandidate)
-			bricks[i] = bestCandidate
-			somethingChanged = true
-		} else {
-			//fmt.Println("Did nothing", bricks[i])
+
+	}
+
+	totalChanged := 0
+	for _, v := range changedMap {
+		if v {
+			totalChanged += 1
 		}
 	}
-	return bricks, somethingChanged
+
+	return bricks, totalChanged
+}
+
+func countDissolves(bricks []Brick) int {
+	aboves := make(map[Brick][]Brick)
+	belows := make(map[Brick][]Brick)
+	for i := 0; i < len(bricks); i++ {
+		for j := 0; j < i; j++ {
+			if bricks[i].IsRestingOn(bricks[j]) {
+				aboves[bricks[j]] = append(aboves[bricks[j]], bricks[i])
+				belows[bricks[i]] = append(belows[bricks[i]], bricks[j])
+			}
+		}
+	}
+
+	totalToDissolve := 0
+	for i := 0; i < len(bricks); i++ {
+		b := bricks[i]
+		//fmt.Println(b, len(aboves[b]), len(belows[b]))
+		allHaveSupport := true
+		for _, a := range aboves[b] {
+			allHaveSupport = allHaveSupport && len(belows[a]) > 1
+		}
+		if allHaveSupport {
+			//fmt.Println("Can dissolve", b)
+			totalToDissolve += 1
+		}
+	}
+
+	return totalToDissolve
 }
 
 func main() {
@@ -146,48 +191,25 @@ func main() {
 		return bricks[i].z1 < bricks[j].z1
 	})
 
-	for _, b := range bricks {
-		fmt.Println(b)
-	}
+	// Initial settle
+	bricks, numSettled := SettleAll(bricks)
+	fmt.Println("Settled", numSettled)
 
-	needsSettling := true
-	for needsSettling {
-		bricks, needsSettling = SettleAll(bricks)
-		fmt.Println("NEXT ROUND ")
-		for _, b := range bricks {
-			fmt.Println(b)
-		}
-	}
+	// Part 1
+	// totalToDissolve := countDissolves(bricks)
+	// fmt.Println("Total to dissolve", totalToDissolve)
 
-	fmt.Println("Settled")
-	for _, b := range bricks {
-		fmt.Println(b)
-	}
-
-	aboves := make(map[Brick][]Brick)
-	belows := make(map[Brick][]Brick)
+	// Part 2
+	totalDissolved := 0
 	for i := 0; i < len(bricks); i++ {
-		for j := 0; j < i; j++ {
-			if bricks[i].IsRestingOn(bricks[j]) {
-				aboves[bricks[j]] = append(aboves[bricks[j]], bricks[i])
-				belows[bricks[i]] = append(belows[bricks[i]], bricks[j])
-			}
-		}
-	}
+		newBricks := make([]Brick, 0)
+		newBricks = append(newBricks, bricks[:i]...)
+		newBricks = append(newBricks, bricks[i+1:]...)
+		_, newNumSettled := SettleAll(newBricks)
+		fmt.Println("Dissolving", bricks[i].label, newNumSettled)
+		totalDissolved += newNumSettled
 
-	totalToDissolve := 0
-	for i := 0; i < len(bricks); i++ {
-		b := bricks[i]
-		fmt.Println(b, len(aboves[b]), len(belows[b]))
-		allHaveSupport := true
-		for _, a := range aboves[b] {
-			allHaveSupport = allHaveSupport && len(belows[a]) > 1
-		}
-		if allHaveSupport {
-			fmt.Println("Can dissolve", b)
-			totalToDissolve += 1
-		}
 	}
-	fmt.Println("Total to dissolve", totalToDissolve)
+	fmt.Println("Total Dissolved", totalDissolved)
 
 }
