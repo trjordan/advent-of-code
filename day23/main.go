@@ -16,7 +16,7 @@ type Segment struct {
 	length     int
 }
 
-func nextPoints(strMap []string, prev Point, cur Point) []Point {
+func NextPoints(strMap []string, prev Point, cur Point) []Point {
 	nextPoints := []Point{}
 
 	// Look right
@@ -58,13 +58,13 @@ func nextPoints(strMap []string, prev Point, cur Point) []Point {
 	return nextPoints
 }
 
-func createSegments(strMap []string) []Segment {
+func CreateSegments(strMap []string) []Segment {
 	// Manual start
-	nextStarts := []Point{{1, 0}}
+	nextStarts := []Point{{1, 0}, {1, 1}}
 	prev := nextStarts[0]
 	cur := Point{1, 1}
 	segments := []Segment{}
-	curPoints := []Point{prev}
+	curPoints := []Point{}
 
 	// Don't get stuck looping, keep track of the intersections we've seen, and
 	// don't add them to nextStarts
@@ -73,7 +73,7 @@ func createSegments(strMap []string) []Segment {
 	// Go explore!
 	for len(nextStarts) > 0 {
 		curPoints = append(curPoints, prev)
-		nexts := nextPoints(strMap, prev, cur)
+		nexts := NextPoints(strMap, prev, cur)
 		if len(nexts) != 1 {
 			// wrap it up
 			curPoints = append(curPoints, cur)
@@ -81,21 +81,22 @@ func createSegments(strMap []string) []Segment {
 				start:  nextStarts[0],
 				end:    cur,
 				points: curPoints,
+				length: len(curPoints),
 			})
 			curPoints = []Point{}
-			nextStarts = nextStarts[1:]
+			nextStarts = nextStarts[2:]
 
 			if len(nexts) > 1 {
 				for i := 0; i < len(nexts); i++ {
 					if !seen[nexts[i]] {
-						nextStarts = append(nextStarts, nexts[i])
+						nextStarts = append(nextStarts, cur, nexts[i])
 						seen[nexts[i]] = true
 					}
 				}
 			}
 			if len(nextStarts) > 0 {
-				prev = cur
-				cur = nextStarts[0]
+				prev = nextStarts[0]
+				cur = nextStarts[1]
 			}
 		} else {
 			// keep chugging
@@ -107,7 +108,40 @@ func createSegments(strMap []string) []Segment {
 	return segments
 }
 
-func printMap(strMap []string, segments []Segment) {
+func FindPreviousSegments(p Point, segments []Segment) []Segment {
+	segmentMap := map[Point][]Segment{}
+	for i := 0; i < len(segments); i++ {
+		segmentMap[segments[i].end] = append(segmentMap[segments[i].end], segments[i])
+	}
+
+	return segmentMap[p]
+}
+
+func IsStartingSegment(s Segment) bool {
+	return s.start.x == 1 && s.start.y == 0
+}
+
+func FindLongestPathLen(start Point, lenSoFar int, segments []Segment, strMap []string) int {
+	fmt.Println(start, lenSoFar)
+	nextSegments := FindPreviousSegments(start, segments)
+
+	longest := lenSoFar
+	for i := 0; i < len(nextSegments); i++ {
+		// fmt.Println("Gonna do", nextSegments[i], longest)
+		// PrintMap(strMap, []Segment{nextSegments[i]})
+		nextLenSoFar := FindLongestPathLen(nextSegments[i].start, lenSoFar+nextSegments[i].length-1, segments, strMap)
+		if nextLenSoFar > longest {
+			longest = nextLenSoFar
+		}
+		if IsStartingSegment(nextSegments[i]) {
+			fmt.Println("Found a full path with length ", nextLenSoFar)
+		}
+	}
+
+	return longest
+}
+
+func PrintMap(strMap []string, segments []Segment) {
 	// Invert the segments into a map for easy lookup
 	walkedPoints := map[Point]bool{}
 	for _, s := range segments {
@@ -128,7 +162,7 @@ func printMap(strMap []string, segments []Segment) {
 }
 
 func main() {
-	f, _ := os.Open("./baby-input.txt")
+	f, _ := os.Open("./input.txt")
 
 	scanner := bufio.NewScanner(f)
 
@@ -138,8 +172,14 @@ func main() {
 		strMap = append(strMap, scanner.Text())
 	}
 
-	segments := createSegments(strMap)
-	fmt.Println("segments", segments)
+	segments := CreateSegments(strMap)
+	// for i := 0; i < len(segments); i++ {
+	// 	fmt.Println(segments[i])
+	// 	PrintMap(strMap, []Segment{segments[i]})
+	// }
 
-	printMap(strMap, segments)
+	// Find all the segment that end, walk backwards to find the longest
+	longest := FindLongestPathLen(Point{len(strMap[0]) - 2, len(strMap) - 1}, 0, segments, strMap)
+	fmt.Println("longest", longest)
+	// PrintMap(strMap, segments)
 }
