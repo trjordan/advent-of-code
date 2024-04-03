@@ -22,7 +22,8 @@ func nextPoints(strMap []string, prev Point, cur Point) []Point {
 	// Look right
 	if cur.x > 0 {
 		if !(cur.x+1 == prev.x && cur.y == prev.y) &&
-			strMap[cur.y][cur.x+1] == '.' {
+			(strMap[cur.y][cur.x+1] == '.' ||
+				strMap[cur.y][cur.x+1] == '>') {
 			nextPoints = append(nextPoints, Point{cur.x + 1, cur.y})
 		}
 	}
@@ -30,7 +31,8 @@ func nextPoints(strMap []string, prev Point, cur Point) []Point {
 	// Look left
 	if cur.x < len(strMap[0])-1 {
 		if !(cur.x-1 == prev.x && cur.y == prev.y) &&
-			strMap[cur.y][cur.x-1] == '.' {
+			(strMap[cur.y][cur.x-1] == '.' ||
+				strMap[cur.y][cur.x-1] == '<') {
 			nextPoints = append(nextPoints, Point{cur.x - 1, cur.y})
 		}
 	}
@@ -38,7 +40,8 @@ func nextPoints(strMap []string, prev Point, cur Point) []Point {
 	// Look up
 	if cur.y > 0 {
 		if !(cur.x == prev.x && cur.y-1 == prev.y) &&
-			strMap[cur.y-1][cur.x] == '.' {
+			(strMap[cur.y-1][cur.x] == '.' ||
+				strMap[cur.y-1][cur.x] == '^') {
 			nextPoints = append(nextPoints, Point{cur.x, cur.y - 1})
 		}
 	}
@@ -46,7 +49,8 @@ func nextPoints(strMap []string, prev Point, cur Point) []Point {
 	// Look down
 	if cur.y < len(strMap)-1 {
 		if !(cur.x == prev.x && cur.y+1 == prev.y) &&
-			strMap[cur.y+1][cur.x] == '.' {
+			(strMap[cur.y+1][cur.x] == '.' ||
+				strMap[cur.y+1][cur.x] == 'v') {
 			nextPoints = append(nextPoints, Point{cur.x, cur.y + 1})
 		}
 	}
@@ -61,10 +65,15 @@ func createSegments(strMap []string) []Segment {
 	cur := Point{1, 1}
 	segments := []Segment{}
 	curPoints := []Point{prev}
+
+	// Don't get stuck looping, keep track of the intersections we've seen, and
+	// don't add them to nextStarts
+	seen := map[Point]bool{}
+
+	// Go explore!
 	for len(nextStarts) > 0 {
 		curPoints = append(curPoints, prev)
 		nexts := nextPoints(strMap, prev, cur)
-		fmt.Println(prev, cur, nexts)
 		if len(nexts) != 1 {
 			// wrap it up
 			curPoints = append(curPoints, cur)
@@ -76,9 +85,17 @@ func createSegments(strMap []string) []Segment {
 			curPoints = []Point{}
 			nextStarts = nextStarts[1:]
 
-			// TODO: handle putting the 2 starts back on the queue
 			if len(nexts) > 1 {
-				panic("path branch! unhandled")
+				for i := 0; i < len(nexts); i++ {
+					if !seen[nexts[i]] {
+						nextStarts = append(nextStarts, nexts[i])
+						seen[nexts[i]] = true
+					}
+				}
+			}
+			if len(nextStarts) > 0 {
+				prev = cur
+				cur = nextStarts[0]
 			}
 		} else {
 			// keep chugging
