@@ -155,17 +155,23 @@ func FindSegments(p Point, segments []Segment, seen []Point) []Segment {
 	return unexploredSegments
 }
 
-func FindLongestPathLen(start Point, lenSoFar int, segments []Segment, strMap []string, seen []Point) int {
+func FindLongestPathLen(start Point, lenSoFar int, segments []Segment, strMap []string, seen []Point) (int, []Point) {
 	// Update this seen for this round
 	newSeen := make([]Point, len(seen))
 	copy(newSeen, seen)
 	newSeen = append(newSeen, start)
+	longestSeen := newSeen
 
 	nextSegments := FindSegments(start, segments, newSeen)
+	// short-circuit if we've found a path that terminates but isn't an end
+	if len(nextSegments) == 0 && start.y != len(strMap)-1 {
+		return 0, []Point{}
+	}
+
 	longest := lenSoFar
 	for i := 0; i < len(nextSegments); i++ {
 		// fmt.Println("Gonna go explore", nextSegments[i].end, longest, i, len(nextSegments))
-		nextLenSoFar := FindLongestPathLen(
+		nextLenSoFar, nextSeenSoFar := FindLongestPathLen(
 			nextSegments[i].end,
 			lenSoFar+nextSegments[i].length,
 			segments,
@@ -173,13 +179,14 @@ func FindLongestPathLen(start Point, lenSoFar int, segments []Segment, strMap []
 			newSeen)
 		if nextLenSoFar > longest {
 			longest = nextLenSoFar
-			// if nextSegments[i].end.y == len(strMap)-1 {
-			// 	fmt.Println("Longest path so far", newSeen)
-			// }
+			longestSeen = nextSeenSoFar
 		}
+		// if nextSegments[i].end.y == len(strMap)-1 {
+		// 	fmt.Println("Found a path", nextLenSoFar, nextSeenSoFar)
+		// }
 	}
 
-	return longest
+	return longest, longestSeen
 }
 
 func PrintFromSeen(strMap []string, segments []Segment, seen []Point) {
@@ -218,7 +225,7 @@ func PrintMap(strMap []string, segments []Segment) {
 }
 
 func main() {
-	f, _ := os.Open("./baby-input.txt")
+	f, _ := os.Open("./input.txt")
 
 	scanner := bufio.NewScanner(f)
 
@@ -236,9 +243,9 @@ func main() {
 	}
 
 	// Find all the segment that end, walk backwards to find the longest
-	longest := FindLongestPathLen(Point{1, 0}, 0, segments, strMap, []Point{})
-	fmt.Println("longest", longest)
-	PrintMap(strMap, segments)
+	longest, seen := FindLongestPathLen(Point{1, 0}, 0, segments, strMap, []Point{})
+	fmt.Println("longest", longest, seen)
+	PrintFromSeen(strMap, segments, seen)
 	// 6685 too high
 
 }
