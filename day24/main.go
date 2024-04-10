@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"math"
 	"os"
@@ -14,66 +15,94 @@ type Hailstone struct {
 	vx, vy, vz float64
 }
 
-func (h1 Hailstone) coefficients() (float64, float64) {
+func Equalsish(a, b float64) bool {
+	return math.Abs((a-b)/a) < 0.0000000001
+}
+
+func (h1 Hailstone) Coefficients() (float64, float64) {
 	m := h1.vy / h1.vx
 	b := h1.y - (h1.x * m)
 	return m, b
 }
 
-func (h1 Hailstone) WillCollide(h2 Hailstone) bool {
-	// If moving apart in X, then no
-	if math.Abs(h2.x-h1.x) < math.Abs(h2.x+h2.vx)-(h1.x+h1.vx) {
-		return false
-	}
-
-	// If moving apart in Y, then no
-	if math.Abs(h2.y-h1.y) < math.Abs(h2.y+h2.vy)-(h1.y+h1.vy) {
-		return false
-	}
-
-	// if parallel in only 1 dimension, then no
-	parallelInX := ((h2.x - h1.x) == (h2.x+h2.vx)-(h1.x+h1.vx)) && h1.x != h2.x
-	parallelInY := ((h2.y - h1.y) == (h2.y+h2.vy)-(h1.y+h1.vy)) && h1.y != h2.y
-	if parallelInX && parallelInY {
-		return false
-	}
-
-	// Otherwise true
-	return true
+func (h1 Hailstone) Distance(h2 Hailstone) float64 {
+	return math.Sqrt(math.Pow(h1.x-h2.x, 2) + math.Pow(h1.y-h2.y, 2))
 }
 
-func (h1 Hailstone) CollidesAt(h2 Hailstone) (float64, float64) {
-	// Assumes they will collide
+func (h1 Hailstone) TimeToCollision(xCol, yCol float64) float64 {
+	// Returns how many seconds the collision will happen in
+	// If the collision is in the past, then return a negative number
 
-	m1, b1 := h1.coefficients()
-	m2, b2 := h2.coefficients()
+	xtime := (xCol - h1.x) / h1.vx
+	ytime := (yCol - h1.y) / h1.vy
+	if !Equalsish(xtime, ytime) {
+		fmt.Println("xtime", xtime, "ytime", ytime)
+		panic("Collision times don't match between x and y")
+	}
+
+	return xtime
+}
+
+func (h1 Hailstone) CollidesAt(h2 Hailstone) (float64, float64, bool) {
+	// Check for parallel. If they're parallel, then no collision
+	m1, _ := h1.Coefficients()
+	m2, _ := h2.Coefficients()
+	if Equalsish(m1, m2) {
+		fmt.Println("Looks like parallel lines", m1, m2)
+		return math.NaN(), math.NaN(), false
+	}
+
+	// Find the collision point, which may be in the past
+	m1, b1 := h1.Coefficients()
+	m2, b2 := h2.Coefficients()
 	xCollision := (b2 - b1) / (m1 - m2)
-	yCollision := m1*xCollision + b1
+	yCollision := (m1*b2 - m2*b1) / (m1 - m2)
+	fmt.Println("h1", h1, "h2", h2)
 	fmt.Println("m1", m1, "b1", b1, "m2", m2, "b2", b2)
 	fmt.Println("xCollision", xCollision, "yCollision", yCollision)
 
-	return xCollision, yCollision
-}
-
-func (h1 Hailstone) CollidesInTestArea(h2 Hailstone) bool {
-	if !h1.WillCollide(h2) {
-		fmt.Println("No collision expected")
-		return false
+	// If either collision point is in the past, then no collision
+	time1 := h1.TimeToCollision(xCollision, yCollision)
+	time2 := h2.TimeToCollision(xCollision, yCollision)
+	if time1 < 0 && time2 < 0 {
+		fmt.Println("Both collisions were in the past", time1, time2)
+		return xCollision, yCollision, false
+	}
+	if time1 < 0 || time2 < 0 {
+		fmt.Println("Collision was in the past", time1, time2)
+		return xCollision, yCollision, false
 	}
 
+	// Collision point is in the future.
+	// Check that the collision point is on both lines
+	if !Equalsish(m2*xCollision+b2, yCollision) {
+		fmt.Println("Checked", math.Abs(yCollision-m2*xCollision+b2), m2*xCollision+b2)
+		panic("Collision point not on line 2")
+	}
+
+	return xCollision, yCollision, true
+}
+
+func (h1 Hailstone) CollidesInTestArea(h2 Hailstone, baby bool) bool {
+	var testMin, testMax float64
 	// baby test
-	// testMin := 7.0
-	// testMax := 27.0
+	if baby {
+		testMin = 7.0
+		testMax = 27.0
+	} else {
+		// full test
+		testMax = 400000000000000.0
+		testMin = 200000000000000.0
+	}
 
-	// full test
-	testMin := 200000000000000.0
-	testMax := 400000000000000.0
-
-	xCol, yCol := h1.CollidesAt(h2)
+	xCol, yCol, doesCollide := h1.CollidesAt(h2)
+	if !doesCollide {
+		return false
+	}
 	return xCol >= testMin && xCol <= testMax && yCol >= testMin && yCol <= testMax
 }
 
-func ProcessBlock(lines []string) int {
+func ProcessBlock(lines []string, baby bool) int {
 	// process all hailstones against each other (vs what we'd do in a test
 	// program, where we're just looking at specific pairs)
 	hailstones := []Hailstone{}
@@ -96,8 +125,8 @@ func ProcessBlock(lines []string) int {
 	fmt.Println(hailstones)
 	for i := 0; i < len(hailstones)-1; i++ {
 		for j := i + 1; j < len(hailstones); j++ {
-			res := hailstones[i].CollidesInTestArea(hailstones[j])
-			fmt.Println("res", res, hailstones[i], hailstones[j])
+			res := hailstones[i].CollidesInTestArea(hailstones[j], baby)
+			fmt.Println("res", i, j, res)
 			if res {
 				total += 1
 			}
@@ -113,7 +142,15 @@ func ParseSingle(s string) float64 {
 }
 
 func main() {
-	f, _ := os.Open("./input.txt")
+	babyPtr := flag.Bool("baby", false, "Run with the baby test data")
+	flag.Parse()
+
+	var f *os.File
+	if *babyPtr {
+		f, _ = os.Open("./baby-input.txt")
+	} else {
+		f, _ = os.Open("./input.txt")
+	}
 
 	scanner := bufio.NewScanner(f)
 	lines := []string{}
@@ -121,19 +158,23 @@ func main() {
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" {
-			intermediateTotal := ProcessBlock(lines)
-			lines = []string{}
+			intermediateTotal := ProcessBlock(lines, *babyPtr)
 			total += intermediateTotal
+			lines = []string{}
 		} else {
 			lines = append(lines, line)
 		}
 	}
 	if len(lines) > 0 {
-		intermediateTotal := ProcessBlock(lines)
+		intermediateTotal := ProcessBlock(lines, *babyPtr)
 		total += intermediateTotal
 	}
 
 	// 58560 is too high
+	// 58401 is too high
+	// 55832 is too high
+	// 42839 is wrong
+	// 44392 is wrong
 	fmt.Println("Total", total)
 
 }
