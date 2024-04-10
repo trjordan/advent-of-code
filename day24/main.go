@@ -175,6 +175,7 @@ func main() {
 	// 55832 is too high
 	// 42839 is wrong
 	// 44392 is wrong
+	// 11098 is right!
 	fmt.Println("Total", total)
 
 }
